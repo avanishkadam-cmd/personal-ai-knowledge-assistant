@@ -1,0 +1,24 @@
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+
+# Environment variables and secrets
+.env
+.env.*
+
+# Vector database
+chroma_db/
+
+# Uploaded personal documents
+uploads/
+
+# Editor and operating system files
+.vscode/
+.DS_Store
+Thumbs.db
