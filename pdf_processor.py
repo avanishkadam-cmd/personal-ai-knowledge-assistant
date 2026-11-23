@@ -56,7 +56,9 @@ def create_chunks(
     sections = []
     current_section = []
 
-    heading_pattern = r'^\s*\d+\.\s+.+\?\s*$'
+    heading_pattern = (
+        r'^\s*(?:\d+\.\s+.+\?\s*|test\s+questions\s*:?\s*)$'
+    )
 
     for line in lines:
 
@@ -65,8 +67,8 @@ def create_chunks(
         if not line:
             continue
 
-        # Check whether this line is a numbered heading
-        if re.match(heading_pattern, line):
+        # Recognise numbered headings and Test questions
+        if re.match(heading_pattern, line, re.IGNORECASE):
 
             if current_section:
                 sections.append(" ".join(current_section))
@@ -79,7 +81,6 @@ def create_chunks(
     if current_section:
         sections.append(" ".join(current_section))
 
-    # Split sections only if they exceed chunk_size
     chunks = []
 
     for section in sections:
