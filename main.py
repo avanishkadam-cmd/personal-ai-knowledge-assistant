@@ -51,8 +51,12 @@ def ask_question(data: Question):
         # Step 2: Prepare retrieved passages
         sources = []
 
-        for document, metadata in zip(documents, metadatas):
+        for i, (document, metadata) in enumerate(
+            zip(documents, metadatas),
+            start=1
+        ):
             sources.append({
+                "source_id": i,
                 "text": document,
                 "filename": metadata.get("filename", "Unknown"),
                 "page": metadata.get("page", "Unknown")
@@ -74,13 +78,14 @@ def ask_question(data: Question):
             "total_sources": len(sources),
             "sources": [
                 {
+                    "source_id": source["source_id"],
                     "filename": source["filename"],
                     "page": source["page"],
                     "text": source["text"]
                 }
                 for source in sources
-            ]
-        }
+            ]   
+        }   
 
     except Exception as e:
         traceback.print_exc()
