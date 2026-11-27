@@ -28,14 +28,14 @@ MMR_LAMBDA = 0.9
 CANDIDATE_MULTIPLIER = 3
 
 
-def store_chunks(chunks, filename):
+def store_chunks(chunks, filename, document_id):
 
     if not chunks:
         return 0
 
     # Remove old chunks belonging to this file
     collection.delete(
-        where={"filename": filename}
+        where={"document_id": document_id}
     )
 
     texts = [chunk["text"] for chunk in chunks]
@@ -43,12 +43,13 @@ def store_chunks(chunks, filename):
     embeddings = model.encode(texts).tolist()
 
     ids = [
-        f"{filename}_{i}"
+        f"{document_id}_{i}"
         for i in range(len(chunks))
     ]
 
     metadatas = [
         {
+            "document_id": document_id,
             "filename": filename,
             "page": int(chunk["page"]),
             "chunk": i
@@ -255,3 +256,77 @@ def search_chunks(question, n_results=3):
             for candidate in selected_candidates
         ]]
     }
+
+def list_documents():
+
+    # Retrieve metadata for all stored chunks
+    results = collection.get(
+        include=["metadatas"]
+    )
+
+    documents = {}
+
+    for metadata in results["metadatas"]:
+
+        document_id = metadata.get("document_id")
+
+        # Skip old records without a document ID
+        if not document_id:
+            continue
+
+        if document_id not in documents:
+
+            documents[document_id] = {
+                "document_id": document_id,
+                "filename": metadata.get("filename", "Unknown"),
+                "pages": set(),
+                "total_chunks": 0
+            }
+
+        documents[document_id]["pages"].add(
+            metadata.get("page")
+        )
+
+        documents[document_id]["total_chunks"] += 1
+
+    # Convert page sets into page counts
+    document_list = []
+
+    for document in documents.values():
+
+        document_list.append({
+            "document_id": document["document_id"],
+            "filename": document["filename"],
+            "total_pages": len(document["pages"]),
+            "total_chunks": document["total_chunks"]
+        })
+
+    return document_list
+
+def delete_document(document_id):
+
+    # Find all chunks belonging to this document
+    results = collection.get(
+        where={"document_id": document_id}
+    )
+
+    chunk_ids = results["ids"]
+
+    # Check whether the document exists
+    if not chunk_ids:
+        return 0
+
+    # Delete only this document's chunks
+    collection.delete(
+        ids=chunk_ids
+    )
+
+    return len(chunk_ids)
+def debug_documents():
+
+    results = collection.get(
+        include=["metadatas"]
+    )
+
+    for metadata in results["metadatas"]:
+        print(metadata)

@@ -1,12 +1,18 @@
-
+str
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
+import uuid
 import traceback
 
 from pdf_processor import extract_text_from_pdf, create_page_chunks
-from vector_store import store_chunks, search_chunks
+from vector_store import store_chunks, search_chunks, list_documents
 from llm import generate_answer
-
+from vector_store import (
+    store_chunks,
+    search_chunks,
+    list_documents,
+    delete_document
+)
 
 app = FastAPI(
     title="AI Knowledge Assistant",
@@ -31,7 +37,55 @@ def home():
 def health_check():
     return {"status": "healthy"}
 
+@app.delete("/documents/{document_id}")
+def remove_document(document_id: str):
 
+    try:
+        deleted_count = delete_document(document_id)
+
+        if deleted_count == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="Document not found"
+            )
+
+        return {
+            "document_id": document_id,
+            "deleted_chunks": deleted_count,
+            "status": "Document successfully deleted"
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as e:
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not delete document: {str(e)}"
+        )
+
+@app.get("/documents")
+def get_documents():
+
+    try:
+        documents = list_documents()
+
+        return {
+            "total_documents": len(documents),
+            "documents": documents
+        }
+
+    except Exception as e:
+
+        traceback.print_exc()
+
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not retrieve documents: {str(e)}"
+        )
 @app.post("/ask")
 def ask_question(data: Question):
 
@@ -124,9 +178,12 @@ async def upload_pdf(file: UploadFile = File(...)):
                 detail="No readable text found in this PDF"
             )
 
+        document_id = str(uuid.uuid4())
+
         stored_count = store_chunks(
             chunks,
-            file.filename
+            file.filename,
+            document_id
         )
 
         return {
@@ -134,7 +191,8 @@ async def upload_pdf(file: UploadFile = File(...)):
             "total_pages": result["total_pages"],
             "total_chunks": len(chunks),
             "stored_chunks": stored_count,
-            "status": "PDF successfully processed and stored"
+            "status": "PDF successfully processed and stored",
+            "document_id": document_id,
         }
 
     except HTTPException:
@@ -150,3 +208,11 @@ async def upload_pdf(file: UploadFile = File(...)):
 
     finally:
         await file.close()
+@app.get("/debug-documents")
+def debug_documents_endpoint():
+
+    from vector_store import debug_documents
+
+    debug_documents()
+
+    return {"message": "Check your terminal"}
